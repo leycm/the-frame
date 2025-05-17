@@ -1,4 +1,4 @@
-package org.leycm.tabel;
+package org.leycm.table;
 
 import java.util.ArrayList;
 import java.util.Arrays;
