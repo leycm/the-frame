@@ -1,6 +1,6 @@
 package org.leycm.test;
 
-import org.leycm.storage.JavaStorage;
+import org.leycm.storage.impl.JavaStorage;
 import org.leycm.storage.Storage;
 import org.leycm.storage.StorageRegistry;
 
