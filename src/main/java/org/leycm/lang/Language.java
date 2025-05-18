@@ -29,7 +29,7 @@ public record Language(
 
         String fullPath;
         if (!filePath.contains("/") && !filePath.contains("\\")) {
-            fullPath = TranslationHandler.getLangPath() + File.separator + filePath;
+            fullPath = TranslationHandler.getLangDir() + File.separator + filePath;
         } else {
             fullPath = filePath;
         }
