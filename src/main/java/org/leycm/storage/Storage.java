@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -137,7 +138,11 @@ public abstract class Storage {
 
         Adapter.StorageGetter<T> getter = (Adapter.StorageGetter<T>) decrypting.get(type);
         if (getter != null) {
-            return getter.get(key);
+            try {
+                return getter.get(key);
+            } catch (MalformedURLException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         return null;
