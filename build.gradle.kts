@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.leycm.frames"
-version = "1.0.1"
+version = "1.1.0"
 description = "the-frame"
 
 val targetJavaVersion = 21
