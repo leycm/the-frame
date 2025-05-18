@@ -4,10 +4,10 @@ plugins {
 }
 
 group = "org.leycm.frames"
-version = "1.1.0"
+version = "1.2.1"
 description = "the-frame"
 
-val targetJavaVersion = 21
+val targetJavaVersion = 17
 val targetLombokVersion = "1.18.38"
 
 repositories {
@@ -29,7 +29,7 @@ dependencies {
 
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("com.google.guava:guava:33.3.1-jre")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
+    implementation ("com.moandjiezana.toml:toml4j:0.7.2")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.16.1")
 
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
