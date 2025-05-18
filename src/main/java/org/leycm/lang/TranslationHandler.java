@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import com.google.gson.*;
+import org.leycm.storage.StorageRegistry;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,10 +30,17 @@ public final class TranslationHandler {
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
 
-    @Getter private static String langPath;
     @Getter private static Logger logger;
+    @Getter private static String langDir;
+    @Getter private static boolean isSetup;
 
     private TranslationHandler() {}
+
+    static {
+        if (!isSetup) {
+            throw new IllegalStateException("You must call setup() before using this class.");
+        }
+    }
 
     /**
      * Initializes the translation handler with the specified language directory path.
@@ -40,9 +48,14 @@ public final class TranslationHandler {
      *
      * @param path The path to the directory containing language files
      */
-    public static void setup(String path, Logger logger) {
-        TranslationHandler.langPath = path != null ? path : DEFAULT_LANG_DIR;
+    public static void setup(String path,
+                             Logger logger) {
+
+        if (isSetup) throw new IllegalStateException("Already set up!");
+
+        TranslationHandler.langDir = path != null ? path : DEFAULT_LANG_DIR;
         TranslationHandler.logger = logger != null ? logger : Logger.getLogger("the-frame");
+        TranslationHandler.isSetup = true;
     }
 
     /**
@@ -145,11 +158,11 @@ public final class TranslationHandler {
     public static @Nullable JsonObject loadLanguageFile(@NotNull String langCode) throws IOException {
         if (langCache.containsKey(langCode)) return langCache.get(langCode);
 
-        String fullPath = Paths.get(langPath, langCode + ".json").toString();
+        String fullPath = Paths.get(langDir, langCode + ".json").toString();
         File langFile = new File(fullPath);
 
         if (!langFile.exists()) {
-            String fallbackPath = Paths.get(langPath, "en-en.json").toString();
+            String fallbackPath = Paths.get(langDir, "en-en.json").toString();
             File fallbackFile = new File(fallbackPath);
             if (!fallbackFile.exists()) return null;
 
