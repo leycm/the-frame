@@ -1,5 +1,7 @@
 package org.leycm.storage;
 
+import java.net.MalformedURLException;
+
 public class Adapter {
     @FunctionalInterface
     public interface StorageSetter<T> {
@@ -8,6 +10,6 @@ public class Adapter {
 
     @FunctionalInterface
     public interface StorageGetter<T> {
-        T get(String key);
+        T get(String key) throws MalformedURLException;
     }
 }
