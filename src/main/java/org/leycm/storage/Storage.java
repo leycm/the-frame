@@ -42,21 +42,12 @@ public abstract class Storage {
      *
      * @param <T>      The type to adapt
      * @param type     The class object representing the type
-     * @param consumer The setter adapter that handles serialization
+     * @param setter The setter adapter that handles serialization
+     * @param getter The getter adapter that handles deserialization
      */
-    public <T> void addAdapter(Class<T> type, Adapter.StorageSetter<T> consumer) {
-        encrypting.put(type, consumer);
-    }
-
-    /**
-     * Adds a getter adapter for a specific type to handle custom deserialization.
-     *
-     * @param <T>      The type to adapt
-     * @param type     The class object representing the type
-     * @param consumer The getter adapter that handles deserialization
-     */
-    public <T> void addAdapter(Class<T> type, Adapter.StorageGetter<T> consumer) {
-        decrypting.put(type, consumer);
+    public <T> void addAdapter(Class<T> type, Adapter.StorageSetter<T> setter, Adapter.StorageGetter<T> getter) {
+        encrypting.put(type, setter);
+        decrypting.put(type, getter);
     }
 
     /**
