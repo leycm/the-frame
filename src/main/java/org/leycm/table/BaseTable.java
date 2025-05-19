@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Implementation of the FlexibleTabel interface.
+ * Implementation of the Table interface.
  */
 public class BaseTable implements Table {
 
@@ -21,7 +21,7 @@ public class BaseTable implements Table {
     private int nextIndex = 0;
 
     /**
-     * Creates a new HashTable with the specified column types.
+     * Creates a new BaseTable with the specified column types.
      * @param columnTypes the classes representing the column types
      */
     public BaseTable(Class<?>... columnTypes) {
@@ -58,7 +58,7 @@ public class BaseTable implements Table {
                 .findFirst()
                 .orElseThrow(() -> new IndexOutOfBoundsException("Entry with index " + index + " not found"));
     }
-    
+
     /**
      * {@inheritDoc}
      */
@@ -66,7 +66,23 @@ public class BaseTable implements Table {
     public int size() {
         return entries.size();
     }
-    
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getRowCount() {
+        return entries.size();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getColumnCount() {
+        return schema.getColumnCount();
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -74,7 +90,7 @@ public class BaseTable implements Table {
     public List<Entry> getAllEntries() {
         return new ArrayList<>(entries);
     }
-    
+
     /**
      * {@inheritDoc}
      */
@@ -85,8 +101,24 @@ public class BaseTable implements Table {
         entries.add(entry);
         return nextIndex++;
     }
-    
-    
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int setEntry(int index, Object... values) {
+        validateValues(values);
+
+        for (int i = 0; i < entries.size(); i++) {
+            if (entries.get(i).getIndex() == index) {
+                entries.set(i, new BaseEntry(index, values));
+                return index;
+            }
+        }
+
+        throw new IndexOutOfBoundsException("Entry with index " + index + " not found");
+    }
+
     private void validateValues(@NotNull Object @NotNull [] values) {
         if (values.length != schema.getColumnCount()) {
             throw new IllegalArgumentException("Expected " + schema.getColumnCount()
@@ -103,7 +135,7 @@ public class BaseTable implements Table {
             }
         }
     }
-    
+
     /**
      * {@inheritDoc}
      */
@@ -111,7 +143,50 @@ public class BaseTable implements Table {
     public boolean removeEntry(int index) {
         return entries.removeIf(entry -> entry.getIndex() == index);
     }
-    
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T get(int row, int column) {
+        if (row < 0 || row >= entries.size()) {
+            throw new IndexOutOfBoundsException("Row index " + row + " is out of bounds");
+        }
+        if (column < 0 || column >= schema.getColumnCount()) {
+            throw new IndexOutOfBoundsException("Column index " + column + " is out of bounds");
+        }
+
+        return (T) entries.get(row).getValue(column);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <T> T get(int row, int column, Class<T> type) {
+        if (row < 0 || row >= entries.size()) {
+            throw new IndexOutOfBoundsException("Row index " + row + " is out of bounds");
+        }
+        if (column < 0 || column >= schema.getColumnCount()) {
+            throw new IndexOutOfBoundsException("Column index " + column + " is out of bounds");
+        }
+
+        return entries.get(row).getValue(column, type);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object[] getRow(int row) {
+        if (row < 0 || row >= entries.size()) {
+            throw new IndexOutOfBoundsException("Row index " + row + " is out of bounds");
+        }
+
+        return entries.get(row).getAllValues();
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -127,7 +202,7 @@ public class BaseTable implements Table {
 
         return new BaseTable(schema, matchingEntries);
     }
-    
+
     /**
      * {@inheritDoc}
      */
@@ -149,7 +224,7 @@ public class BaseTable implements Table {
         BaseSchema(Class<?>[] columnTypes) {
             this.columnTypes = Arrays.copyOf(columnTypes, columnTypes.length);
         }
-        
+
         /**
          * {@inheritDoc}
          */
@@ -157,7 +232,7 @@ public class BaseTable implements Table {
         public int getColumnCount() {
             return columnTypes.length;
         }
-        
+
         /**
          * {@inheritDoc}
          */
@@ -168,7 +243,7 @@ public class BaseTable implements Table {
             }
             return columnTypes[column];
         }
-        
+
         /**
          * {@inheritDoc}
          */
@@ -190,7 +265,7 @@ public class BaseTable implements Table {
             this.index = index;
             this.values = Arrays.copyOf(values, values.length);
         }
-        
+
         /**
          * {@inheritDoc}
          */
@@ -198,7 +273,7 @@ public class BaseTable implements Table {
         public int getIndex() {
             return index;
         }
-        
+
         /**
          * {@inheritDoc}
          */
@@ -206,7 +281,7 @@ public class BaseTable implements Table {
         public int getColumnCount() {
             return values.length;
         }
-        
+
         /**
          * {@inheritDoc}
          */
@@ -218,7 +293,7 @@ public class BaseTable implements Table {
             }
             return (T) values[column];
         }
-        
+
         /**
          * {@inheritDoc}
          */
@@ -244,7 +319,7 @@ public class BaseTable implements Table {
 
             return (T) value;
         }
-        
+
         /**
          * {@inheritDoc}
          */
@@ -253,6 +328,5 @@ public class BaseTable implements Table {
         public Object @NotNull [] getAllValues() {
             return Arrays.copyOf(values, values.length);
         }
-
     }
 }

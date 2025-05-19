@@ -19,6 +19,7 @@ public class HashTable implements Table {
 
     private final Schema schema;
     private final Map<Integer, Entry> entriesMap = new HashMap<>();
+    private final List<Integer> indexOrder = new ArrayList<>(); // Maintain insertion order for row-based operations
     private int nextIndex = 0;
 
     /**
@@ -37,6 +38,7 @@ public class HashTable implements Table {
     private HashTable(Schema schema, Map<Integer, Entry> entries) {
         this.schema = schema;
         this.entriesMap.putAll(entries);
+        this.indexOrder.addAll(entries.keySet());
         this.nextIndex = entries.isEmpty() ? 0 :
                 entries.keySet().stream().mapToInt(Integer::intValue).max().orElse(-1) + 1;
     }
@@ -73,6 +75,22 @@ public class HashTable implements Table {
      * {@inheritDoc}
      */
     @Override
+    public int getRowCount() {
+        return entriesMap.size();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getColumnCount() {
+        return schema.getColumnCount();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public List<Entry> getAllEntries() {
         return new ArrayList<>(entriesMap.values());
     }
@@ -85,7 +103,24 @@ public class HashTable implements Table {
         validateValues(values);
         HashEntry entry = new HashEntry(nextIndex, values);
         entriesMap.put(nextIndex, entry);
+        indexOrder.add(nextIndex);
         return nextIndex++;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int setEntry(int index, Object... values) {
+        validateValues(values);
+
+        if (!entriesMap.containsKey(index)) {
+            throw new IndexOutOfBoundsException("Entry with index " + index + " not found");
+        }
+
+        HashEntry entry = new HashEntry(index, values);
+        entriesMap.put(index, entry);
+        return index;
     }
 
     private void validateValues(@NotNull Object @NotNull [] values) {
@@ -98,7 +133,7 @@ public class HashTable implements Table {
             Object value = values[i];
             Class<?> expectedType = schema.getColumnType(i);
 
-            if (value != null && !expectedType.isInstance(value)) {
+            if (!expectedType.isInstance(value)) {
                 throw new IllegalArgumentException("Value at column " + i + " is not of expected type "
                         + expectedType.getName());
             }
@@ -110,7 +145,86 @@ public class HashTable implements Table {
      */
     @Override
     public boolean removeEntry(int index) {
-        return entriesMap.remove(index) != null;
+        Entry removed = entriesMap.remove(index);
+        if (removed != null) {
+            indexOrder.remove(Integer.valueOf(index));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T get(int row, int column) {
+        if (row < 0 || row >= indexOrder.size()) {
+            throw new IndexOutOfBoundsException("Row index " + row + " is out of bounds");
+        }
+        if (column < 0 || column >= schema.getColumnCount()) {
+            throw new IndexOutOfBoundsException("Column index " + column + " is out of bounds");
+        }
+
+        int entryIndex = indexOrder.get(row);
+        Entry entry = entriesMap.get(entryIndex);
+        return (T) entry.getValue(column);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <T> T get(int row, int column, Class<T> type) {
+        if (row < 0 || row >= indexOrder.size()) {
+            throw new IndexOutOfBoundsException("Row index " + row + " is out of bounds");
+        }
+        if (column < 0 || column >= schema.getColumnCount()) {
+            throw new IndexOutOfBoundsException("Column index " + column + " is out of bounds");
+        }
+
+        int entryIndex = indexOrder.get(row);
+        Entry entry = entriesMap.get(entryIndex);
+        return entry.getValue(column, type);
+    }
+
+    /**
+     * Returns the value at the specified row and column, or a default value if invalid.
+     *
+     * @param row          the row index (0-based)
+     * @param column       the column index (0-based)
+     * @param defaultValue the default value to return if indices are invalid
+     * @return the value or default if indices are invalid
+     */
+    public <T> T getOrDefault(int row, int column, T defaultValue) {
+        return Table.super.getOrDefault(row, column, defaultValue);
+    }
+
+    /**
+     * Returns the value at the specified row and column as the given type, or a default value.
+     *
+     * @param row          the row index (0-based)
+     * @param column       the column index (0-based)
+     * @param type         the class representing the expected type
+     * @param defaultValue the default value to return if indices are invalid or casting fails
+     * @return the value cast to type, or default if invalid
+     */
+    public <T> T getOrDefault(int row, int column, Class<T> type, T defaultValue) {
+        return Table.super.getOrDefault(row, column, type, defaultValue);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object[] getRow(int row) {
+        if (row < 0 || row >= indexOrder.size()) {
+            throw new IndexOutOfBoundsException("Row index " + row + " is out of bounds");
+        }
+
+        int entryIndex = indexOrder.get(row);
+        Entry entry = entriesMap.get(entryIndex);
+        return entry.getAllValues();
     }
 
     /**
