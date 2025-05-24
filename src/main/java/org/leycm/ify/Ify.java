@@ -2,6 +2,7 @@ package org.leycm.ify;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 
@@ -134,12 +135,8 @@ public final class Ify {
      */
     @SafeVarargs
     private static <T> int count(BiPredicate<T, T> comparator, T value, T @NotNull ... values) {
-        int matches = 0;
-        for (T v : values) {
-            if (comparator.test(value, v)) {
-                matches++;
-            }
-        }
-        return matches;
+        return (int) Arrays.stream(values)
+                .filter(v -> comparator.test(value, v))
+                .count();
     }
 }
