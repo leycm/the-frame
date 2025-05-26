@@ -18,7 +18,7 @@ public final class Sql {
     // Database configuration (could be moved to config file)
     private final String DB_URL;
     private final String DB_USER;
-    private final String DB_PASSWORD;
+      private final String DB_PASSWORD;
 
     /**
      * Constructs a new Sql instance with the specified database credentials.

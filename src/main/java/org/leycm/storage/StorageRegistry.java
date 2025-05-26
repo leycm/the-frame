@@ -31,6 +31,7 @@ public final class StorageRegistry {
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private static final Yaml yaml = new Yaml();
     private static final Toml toml = new Toml();
+    private static final TomlWriter tomlWriter = new TomlWriter();
 
     @Getter private static Logger logger;
     @Getter private static String configDir = "";
@@ -150,7 +151,7 @@ public final class StorageRegistry {
             reload(storage);
 
             cash(file, storage);
-            storage.registerAdapter();
+            storage.callAdapter();
 
             return storage;
         } catch (InstantiationException | IllegalAccessException |
@@ -239,5 +240,23 @@ public final class StorageRegistry {
     private static void cash(@NotNull String file,
                              @NotNull StorageBase storage) {
         storageCash.put(file, storage);
+    }
+
+    public static String serialize(Map<String, Object> map, @NotNull StorageBase.Type type) {
+        return switch (type) {
+            case JSON -> gson.toJson(map);
+            case YAML -> yaml.dump(map);
+            case TOML -> tomlWriter.write(map);
+            default -> throw new IllegalArgumentException("Unsupported serialization type");
+        };
+    }
+
+    public static Map<String, Object> deserialize(String content, @NotNull StorageBase.Type type) {
+        return switch (type) {
+            case JSON -> gson.fromJson(content, Map.class);
+            case YAML -> yaml.load(content);
+            case TOML -> toml.read(content).toMap();
+            default -> throw new IllegalArgumentException("Unsupported serialization type");
+        };
     }
 }

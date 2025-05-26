@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.util.*;
 
@@ -68,8 +69,9 @@ public abstract class StorageBase {
      * This method registers adapters for fundamental types like StorageSection.
      * It is automatically called during storage initialization.
      */
-    public void registerBaseAdapter() {
+    public void callAdapter() {
         addAdapter(StorageSection.class, this::setStorageSection, this::getStorageSection);
+        registerAdapter();
     }
 
     /**
@@ -79,6 +81,7 @@ public abstract class StorageBase {
      * @param key      The key/path where the section will be stored
      * @param section  The StorageSection object to serialize
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
     @Deprecated
     private void setStorageSection(String key, StorageSection section) {
         set(key, section);
@@ -119,6 +122,23 @@ public abstract class StorageBase {
             this.id = id;
         }
     }
+
+    /**
+     * Checks if this storage instance is marked as digital (should not persist to file).
+     * @return true if the @Digital annotation is present on the class
+     */
+    public boolean isDigital() {
+        for (Field field : this.getClass().getDeclaredFields()) {
+            field.setAccessible(true);
+            try {
+                if (field.get(this) == this) {
+                    return field.isAnnotationPresent(Digital.class);
+                }
+            } catch (IllegalAccessException ignored) {}
+        }
+        return false;
+    }
+
 
     /**
      * Stores a value at the specified key/path.
@@ -271,9 +291,58 @@ public abstract class StorageBase {
      * The file will be created if it doesn't exist, or overwritten if it does.
      *
      * @throws RuntimeException if the save operation fails (e.g., IO error or serialization error)
+     * @throws IllegalStateException if this is a digital storage (marked with @Digital annotation)
      */
-    public void save() {StorageRegistry.save(this); }
+    public void save() {
+        if (isDigital()) {
+            throw new IllegalStateException("Digital storage cannot be saved to file");
+        }
+        StorageRegistry.save(this);
+    }
 
+    /**
+     * Returns a string representation of the storage data in the default format.
+     * @return serialized data as string in default format
+     */
+    @Override
+    public String toString() {
+        return toStringAs(this.type);
+    }
+
+    /**
+     * Returns a string representation of the storage data in the specified format.
+     * @param format the desired output format
+     * @return serialized data as string in requested format
+     */
+    public String toStringAs(Type format) {
+        return StorageRegistry.serialize(this.init, format);
+    }
+
+    /**
+     * Deserializes data from a string representation in the default format
+     * and populates the storage with the parsed data.
+     *
+     * @param content the string containing serialized data in default format
+     * @throws IllegalArgumentException if the content cannot be parsed
+     * @throws NullPointerException if the content is null
+     */
+    public void fromString(String content) {
+        fromSpecificString(content, this.type);
+    }
+
+    /**
+     * Deserializes data from a string representation in the specified format
+     * and populates the storage with the parsed data.
+     *
+     * @param content the string containing serialized data
+     * @param format the format of the input data
+     * @throws IllegalArgumentException if the content cannot be parsed in the specified format
+     * @throws NullPointerException if either content or format is null
+     * @throws UnsupportedOperationException if the specified format is not supported
+     */
+    public void fromSpecificString(String content, Type format) {
+        init.putAll(StorageRegistry.deserialize(content, format));
+    }
 
     /**
      * Returns a set of keys at the root level or all keys if deep is true.
