@@ -34,7 +34,7 @@ public final class StorageRegistry {
     private static final TomlWriter tomlWriter = new TomlWriter();
 
     @Getter private static Logger logger;
-    @Getter private static String configDir = "";
+    @Getter private static String storageDir = "";
     @Getter private static boolean isSetup;
 
     /**
@@ -78,7 +78,7 @@ public final class StorageRegistry {
 
         if (isSetup) throw new IllegalStateException("Already set up!");
 
-        StorageRegistry.configDir = path != null ? path : DEFAULT_STORAGE_DIR;
+        StorageRegistry.storageDir = path != null ? path : DEFAULT_STORAGE_DIR;
         StorageRegistry.logger = logger != null ? logger : Logger.getLogger("the-frame");
         StorageRegistry.isSetup = true;
     }
@@ -98,10 +98,11 @@ public final class StorageRegistry {
      */
     public static <T extends StorageBase> @NotNull T register(@NotNull String file,
                                                               @NotNull StorageBase.Type type,
+                                                              boolean digital,
                                                               @NotNull Class<T> storageClass) {
         requireSetup();
-        String fullFile = configDir + "/" + file;
-        return storageCash.containsKey(fullFile) ? fromCache(fullFile, storageClass) : load(fullFile, type, storageClass);
+        String fullFile = digital ? storageDir + "/" + file : ".digital/" + file;
+        return storageCash.containsKey(fullFile) ? fromCache(fullFile, storageClass) : load(fullFile, type, digital, storageClass);
     }
 
     /**
@@ -142,13 +143,16 @@ public final class StorageRegistry {
      */
     private static <T extends StorageBase> @NotNull T load(@NotNull String file,
                                                            @NotNull StorageBase.Type type,
+                                                           boolean digital,
                                                            @NotNull Class<T> storageClass) {
         try {
             T storage = storageClass.getDeclaredConstructor().newInstance();
 
             storage.file = file;
             storage.type = type;
-            reload(storage);
+            storage.isDigital = digital;
+
+            if(!digital) reload(storage);
 
             cash(file, storage);
             storage.callAdapter();
