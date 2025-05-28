@@ -24,6 +24,26 @@ public abstract class StorageBase {
 
     protected String file = "storage";
     protected Type type = Type.JSON;
+    protected boolean isDigital = false;
+
+    /**
+     * Creates or loads a storage instance of the specified type.
+     *
+     * @param <T>           The storage type that extends this abstract class
+     * @param file          The base filename (without extension) where data will be stored
+     * @param type          The storage file format type (JSON, YAML, or TOML)
+     * @param digital       The storage file state digital or not
+     * @param storageClass  The class of the storage implementation to create
+     * @return A new storage instance of the requested type
+     * @throws IllegalArgumentException if the storage cannot be created or loaded
+     * @throws RuntimeException if there's an error during initialization
+     */
+    public static <T extends StorageBase> @NotNull T of(@NotNull String file,
+                                                        @NotNull Type type,
+                                                        boolean digital,
+                                                        @NotNull Class<T> storageClass) {
+        return StorageRegistry.register(file, type, digital, storageClass);
+    }
 
     /**
      * Creates or loads a storage instance of the specified type.
@@ -39,7 +59,7 @@ public abstract class StorageBase {
     public static <T extends StorageBase> @NotNull T of(@NotNull String file,
                                                         @NotNull Type type,
                                                         @NotNull Class<T> storageClass) {
-        return StorageRegistry.register(file, type, storageClass);
+        return StorageRegistry.register(file, type, false, storageClass);
     }
 
     /**
@@ -128,15 +148,7 @@ public abstract class StorageBase {
      * @return true if the @Digital annotation is present on the class
      */
     public boolean isDigital() {
-        for (Field field : this.getClass().getDeclaredFields()) {
-            field.setAccessible(true);
-            try {
-                if (field.get(this) == this) {
-                    return field.isAnnotationPresent(Digital.class);
-                }
-            } catch (IllegalAccessException ignored) {}
-        }
-        return false;
+        return isDigital;
     }
 
 
