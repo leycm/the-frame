@@ -21,7 +21,7 @@ import java.util.logging.Logger;
 
 /**
  * A utility class that manages the registration, loading, reloading, and saving
- * of {@link StorageBase} instances. It supports JSON, YAML, and TOML file formats.
+ * of {@link Storage} instances. It supports JSON, YAML, and TOML file formats.
  * This class follows a singleton-like pattern for its static methods and maintains
  * a cache of loaded storage instances.
  */
@@ -38,9 +38,9 @@ public final class StorageRegistry {
     @Getter private static boolean isSetup;
 
     /**
-     * A cache to store loaded {@link StorageBase} instances, keyed by their full file path.
+     * A cache to store loaded {@link Storage} instances, keyed by their full file path.
      */
-    public static final Map<String, StorageBase> storageCash = new HashMap<>();
+    public static final Map<String, Storage> storageCash = new HashMap<>();
 
     /**
      * Ensures that the {@link #setup(String, Logger)} method has been called before
@@ -89,36 +89,36 @@ public final class StorageRegistry {
      * is loaded from the file.
      *
      * @param file           The name of the storage file (without the extension).
-     * @param type           The {@link StorageBase.Type} of the storage file (e.g., JSON, YAML, TOML).
-     * @param storageClass   The class of the {@link StorageBase} to be registered and loaded.
-     * @param <T>            The generic type of the {@link StorageBase}.
-     * @return The loaded or cached instance of the specified {@link StorageBase}.
+     * @param type           The {@link Storage.Type} of the storage file (e.g., JSON, YAML, TOML).
+     * @param storageClass   The class of the {@link Storage} to be registered and loaded.
+     * @param <T>            The generic type of the {@link Storage}.
+     * @return The loaded or cached instance of the specified {@link Storage}.
      * @throws IllegalStateException if the registry has not been set up.
      * @throws RuntimeException      if an error occurs during the creation of the storage instance.
      */
-    public static <T extends StorageBase> @NotNull T register(@NotNull String file,
-                                                              @NotNull StorageBase.Type type,
-                                                              boolean digital,
-                                                              @NotNull Class<T> storageClass) {
+    public static <T extends Storage> @NotNull T register(@NotNull String file,
+                                                          @NotNull Storage.Type type,
+                                                          boolean digital,
+                                                          @NotNull Class<T> storageClass) {
         requireSetup();
-        String fullFile = digital ? storageDir + "/" + file : ".digital/" + file;
+        String fullFile = !digital ? storageDir + "/" + file : ".digital/" + file;
         return storageCash.containsKey(fullFile) ? fromCache(fullFile, storageClass) : load(fullFile, type, digital, storageClass);
     }
 
     /**
-     * Retrieves a {@link StorageBase} instance from the cache.
+     * Retrieves a {@link Storage} instance from the cache.
      *
      * @param file           The full file path (including the configuration directory and file name)
      * of the cached storage.
-     * @param storageClass   The expected class of the cached {@link StorageBase}.
-     * @param <T>            The generic type of the {@link StorageBase}.
-     * @return The cached instance of the specified {@link StorageBase}.
+     * @param storageClass   The expected class of the cached {@link Storage}.
+     * @param <T>            The generic type of the {@link Storage}.
+     * @return The cached instance of the specified {@link Storage}.
      * @throws IllegalStateException if no cached storage is found for the given file or if the
      * cached storage is not of the expected type.
      */
-    private static <T extends StorageBase> @NotNull T fromCache(@NotNull String file,
-                                                                @NotNull Class<T> storageClass) {
-        StorageBase cached = storageCash.get(file);
+    private static <T extends Storage> @NotNull T fromCache(@NotNull String file,
+                                                            @NotNull Class<T> storageClass) {
+        Storage cached = storageCash.get(file);
         if (cached == null) {
             throw new IllegalStateException("No cached storage found for file: " + file);
         }
@@ -131,20 +131,20 @@ public final class StorageRegistry {
     }
 
     /**
-     * Loads a new {@link StorageBase} instance from the specified file.
+     * Loads a new {@link Storage} instance from the specified file.
      *
      * @param file           The full file path (including the configuration directory and file name)
      * of the storage file (without the extension).
-     * @param type           The {@link StorageBase.Type} of the storage file.
-     * @param storageClass   The class of the {@link StorageBase} to be loaded.
-     * @param <T>            The generic type of the {@link StorageBase}.
-     * @return The newly loaded instance of the specified {@link StorageBase}.
+     * @param type           The {@link Storage.Type} of the storage file.
+     * @param storageClass   The class of the {@link Storage} to be loaded.
+     * @param <T>            The generic type of the {@link Storage}.
+     * @return The newly loaded instance of the specified {@link Storage}.
      * @throws RuntimeException if an error occurs during the creation or loading of the storage instance.
      */
-    private static <T extends StorageBase> @NotNull T load(@NotNull String file,
-                                                           @NotNull StorageBase.Type type,
-                                                           boolean digital,
-                                                           @NotNull Class<T> storageClass) {
+    private static <T extends Storage> @NotNull T load(@NotNull String file,
+                                                       @NotNull Storage.Type type,
+                                                       boolean digital,
+                                                       @NotNull Class<T> storageClass) {
         try {
             T storage = storageClass.getDeclaredConstructor().newInstance();
 
@@ -165,14 +165,14 @@ public final class StorageRegistry {
     }
 
     /**
-     * Reloads the data from the storage file into the provided {@link StorageBase} instance.
+     * Reloads the data from the storage file into the provided {@link Storage} instance.
      *
-     * @param storage The {@link StorageBase} instance to be reloaded.
+     * @param storage The {@link Storage} instance to be reloaded.
      * @throws IllegalStateException if the registry has not been set up.
      * @throws RuntimeException      if an I/O error occurs while reading the storage file.
      */
     @SuppressWarnings("unchecked")
-    public static void reload(@NotNull StorageBase storage) {
+    public static void reload(@NotNull Storage storage) {
         requireSetup();
 
         try {
@@ -191,12 +191,12 @@ public final class StorageRegistry {
     }
 
     /**
-     * Saves the data from the provided {@link StorageBase} instance to its corresponding file.
+     * Saves the data from the provided {@link Storage} instance to its corresponding file.
      *
-     * @param storage The {@link StorageBase} instance to be saved.
+     * @param storage The {@link Storage} instance to be saved.
      * @throws IllegalStateException if the registry has not been set up.
      */
-    public static void save(@NotNull StorageBase storage) {
+    public static void save(@NotNull Storage storage) {
         requireSetup();
         File file = new File(storage.file + "." + storage.type.getId()); // e.g., "config.json"
 
@@ -235,18 +235,18 @@ public final class StorageRegistry {
     }
 
     /**
-     * Caches the given {@link StorageBase} instance with its full file path as the key.
+     * Caches the given {@link Storage} instance with its full file path as the key.
      *
      * @param file    The full file path (including the configuration directory and file name)
      * of the storage.
-     * @param storage The {@link StorageBase} instance to be cached.
+     * @param storage The {@link Storage} instance to be cached.
      */
     private static void cash(@NotNull String file,
-                             @NotNull StorageBase storage) {
+                             @NotNull Storage storage) {
         storageCash.put(file, storage);
     }
 
-    public static String serialize(Map<String, Object> map, @NotNull StorageBase.Type type) {
+    public static String serialize(Map<String, Object> map, @NotNull Storage.Type type) {
         return switch (type) {
             case JSON -> gson.toJson(map);
             case YAML -> yaml.dump(map);
@@ -255,7 +255,7 @@ public final class StorageRegistry {
         };
     }
 
-    public static Map<String, Object> deserialize(String content, @NotNull StorageBase.Type type) {
+    public static Map<String, Object> deserialize(String content, @NotNull Storage.Type type) {
         return switch (type) {
             case JSON -> gson.fromJson(content, Map.class);
             case YAML -> yaml.load(content);

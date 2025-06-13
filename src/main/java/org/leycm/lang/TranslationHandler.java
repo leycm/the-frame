@@ -36,9 +36,15 @@ public final class TranslationHandler {
 
     private TranslationHandler() {}
 
-    static {
-        if (!isSetup) {
-            throw new IllegalStateException("You must call setup() before using this class.");
+    /**
+     * Ensures that the {@link #setup(String, Logger)} method has been called before
+     * allowing any operations that rely on the registry being initialized.
+     *
+     * @throws IllegalStateException if the registry has not been set up.
+     */
+    private static void requireSetup() {
+        if (!isSetup()) {
+            throw new IllegalStateException("Setup required before using this class.");
         }
     }
 
@@ -66,6 +72,7 @@ public final class TranslationHandler {
      * @return A Translation object containing the key and its translated value
      */
     public static @NotNull Translation getTranslationFor(String key) {
+        requireSetup();
         return getTranslationFromJson("messages", key, Language.of("en-en.json"));
     }
 
@@ -78,6 +85,7 @@ public final class TranslationHandler {
      * @return A Translation object containing the key and its translated value
      */
     public static @NotNull Translation getTranslationFor(String key, Language lang) {
+        requireSetup();
         return getTranslationFromJson("messages", key, lang);
     }
 
@@ -90,6 +98,7 @@ public final class TranslationHandler {
      * @return A Translation object containing the key and its translated value
      */
     public static @NotNull Translation getTranslationFor(String path, String key) {
+        requireSetup();
         return getTranslationFromJson(path, key, Language.of("en-en.json"));
     }
 
@@ -104,6 +113,7 @@ public final class TranslationHandler {
      */
     @Contract("_, _, null -> new")
     public static @NotNull Translation getTranslationFor(String path, String key, Language lang) {
+        requireSetup();
         return getTranslationFromJson(path, key, lang);
     }
 
@@ -117,6 +127,7 @@ public final class TranslationHandler {
      *         (returns the key as the translation if the path/key is not found)
      */
     private static @NotNull Translation getTranslationFromJson(String path, String key, Language lang) {
+        requireSetup();
         if (lang == null) return new Translation(path , key, key);
 
         try {
@@ -156,6 +167,7 @@ public final class TranslationHandler {
      * @throws IOException If there's an error reading the language file
      */
     public static @Nullable JsonObject loadLanguageFile(@NotNull String langCode) throws IOException {
+        requireSetup();
         if (langCache.containsKey(langCode)) return langCache.get(langCode);
 
         String fullPath = Paths.get(langDir, langCode + ".json").toString();
@@ -183,6 +195,7 @@ public final class TranslationHandler {
      * This forces the handler to reload language files from disk on next access.
      */
     public static void clearCache() {
+        requireSetup();
         langCache.clear();
     }
 }

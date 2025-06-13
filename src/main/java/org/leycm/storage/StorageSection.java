@@ -25,12 +25,12 @@ import org.jetbrains.annotations.Nullable;
  * </pre>
  * </p>
  */
-public class StorageSection extends StorageBase {
+public class StorageSection extends Storage {
 
     /**
      * The parent storage instance to which this section delegates all operations.
      */
-    protected StorageBase parentStorage;
+    protected Storage parentStorage;
 
     /**
      * The path prefix for this section in the parent storage.
@@ -52,7 +52,7 @@ public class StorageSection extends StorageBase {
     /**
      * Stores a value in this storage section. The key will be automatically prefixed
      * with the section's path in the parent storage.
-     * {@link StorageBase#set(String, Object)}
+     * {@link Storage#set(String, Object)}
      *
      * @param <T>   The type of the value to store
      * @param key   The key within this section (without the section prefix)
@@ -66,7 +66,7 @@ public class StorageSection extends StorageBase {
     /**
      * Retrieves a value from this storage section. The key will be automatically prefixed
      * with the section's path in the parent storage.
-     * {@link StorageBase#get(String, Class)}
+     * {@link Storage#get(String, Class)}
      *
      * @param <T>  The expected return type
      * @param key  The key within this section (without the section prefix)
@@ -81,7 +81,7 @@ public class StorageSection extends StorageBase {
     /**
      * Retrieves a value from this storage section with a fallback default value.
      * The key will be automatically prefixed with the section's path in the parent storage.
-     * {@link StorageBase#get(String, Class, Object)}
+     * {@link Storage#get(String, Class, Object)}
      *
      * @param <T>          The expected return type
      * @param key          The key within this section (without the section prefix)

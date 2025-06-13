@@ -2,7 +2,7 @@ package org.leycm.storage.impl;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.leycm.storage.StorageBase;
+import org.leycm.storage.Storage;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -27,7 +27,7 @@ import java.util.UUID;
  * </ul>
  * All values are stored as strings using standard ISO formats where applicable.
  */
-public class JavaStorage extends StorageBase {
+public class JavaStorage extends Storage {
 
     /**
      * Registers all type adapters for common Java types.

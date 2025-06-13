@@ -5,9 +5,10 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Abstract base class for storage implementations that handle key-value data persistence.
@@ -16,7 +17,7 @@ import java.util.*;
  * This class provides a hierarchical storage system with dot-notation paths (e.g., "user.profile.name")
  * and supports custom type adapters for complex object serialization/deserialization.
  */
-public abstract class StorageBase {
+public abstract class Storage {
     protected final Map<String, Object> init = new HashMap<>();
 
     protected final Map<Class<?>, StorageAdapter.Setter<?>> encrypting = new HashMap<>();
@@ -38,10 +39,10 @@ public abstract class StorageBase {
      * @throws IllegalArgumentException if the storage cannot be created or loaded
      * @throws RuntimeException if there's an error during initialization
      */
-    public static <T extends StorageBase> @NotNull T of(@NotNull String file,
-                                                        @NotNull Type type,
-                                                        boolean digital,
-                                                        @NotNull Class<T> storageClass) {
+    public static <T extends Storage> @NotNull T of(@NotNull String file,
+                                                    @NotNull Type type,
+                                                    boolean digital,
+                                                    @NotNull Class<T> storageClass) {
         return StorageRegistry.register(file, type, digital, storageClass);
     }
 
@@ -56,9 +57,9 @@ public abstract class StorageBase {
      * @throws IllegalArgumentException if the storage cannot be created or loaded
      * @throws RuntimeException if there's an error during initialization
      */
-    public static <T extends StorageBase> @NotNull T of(@NotNull String file,
-                                                        @NotNull Type type,
-                                                        @NotNull Class<T> storageClass) {
+    public static <T extends Storage> @NotNull T of(@NotNull String file,
+                                                    @NotNull Type type,
+                                                    @NotNull Class<T> storageClass) {
         return StorageRegistry.register(file, type, false, storageClass);
     }
 
@@ -96,7 +97,7 @@ public abstract class StorageBase {
 
     /**
      * Internal method to handle serialization of StorageSection objects.
-     * @deprecated {@link StorageSection} ar linking the value right back to their parent {@link StorageBase}.
+     * @deprecated {@link StorageSection} ar linking the value right back to their parent {@link Storage}.
      *
      * @param key      The key/path where the section will be stored
      * @param section  The StorageSection object to serialize
@@ -183,15 +184,15 @@ public abstract class StorageBase {
      *
      * @param <T>          The expected return type
      * @param key          The path/key of the value to retrieve
-     * @param type         The expected class of the return value
+     * @param clazz         The expected class of the return value
      * @param defaultValue The value to return if the key doesn't exist
      * @return The stored value if found and convertible, otherwise the defaultValue
      * @see #get(String, Class)
      */
     public <T> T get(@NotNull String key,
-                     @NotNull Class<T> type,
+                     @NotNull Class<T> clazz,
                      @Nullable T defaultValue) {
-        T value = get(key, type);
+        T value = get(key, clazz);
         return value != null ? value : defaultValue;
     }
 
@@ -202,20 +203,20 @@ public abstract class StorageBase {
      *
      * @param <T>  The expected return type
      * @param key  The path/key of the value to retrieve
-     * @param type The expected class of the return value
+     * @param clazz The expected class of the return value
      * @return The stored value if found and convertible, otherwise null
      * @throws RuntimeException if there's an error during deserialization
      */
     @SuppressWarnings("unchecked")
-    public <T> @Nullable T get(@NotNull String key, @NotNull Class<T> type) {
+    public <T> @Nullable T get(@NotNull String key, @NotNull Class<T> clazz) {
         Object value = getPathValue(key);
         if (value == null) return null;
 
-        if (type.isInstance(value)) {
+        if (clazz.isInstance(value)) {
             return (T) value;
         }
 
-        StorageAdapter.Getter<T> getter = (StorageAdapter.Getter<T>) decrypting.get(type);
+        StorageAdapter.Getter<T> getter = (StorageAdapter.Getter<T>) decrypting.get(clazz);
         if (getter != null) {
             try {
                 return getter.get(key);
@@ -306,9 +307,7 @@ public abstract class StorageBase {
      * @throws IllegalStateException if this is a digital storage (marked with @Digital annotation)
      */
     public void save() {
-        if (isDigital()) {
-            throw new IllegalStateException("Digital storage cannot be saved to file");
-        }
+        if (isDigital()) throw new IllegalStateException("Digital storage cannot be saved to file");
         StorageRegistry.save(this);
     }
 
@@ -500,6 +499,223 @@ public abstract class StorageBase {
             current.append(parts[i]);
             collector.add(current.toString());
         }
+    }
+
+    /**
+     * Checks if the storage contains a value at the specified key/path.
+     *
+     * @param key The path/key to check
+     * @return true if a value exists at the specified path, false otherwise
+     */
+    public boolean contains(@NotNull String key) {
+        return getPathValue(key) != null;
+    }
+
+    /**
+     * Checks if the storage contains a non-null value at the specified key/path.
+     *
+     * @param key The path/key to check
+     * @return true if a non-null value exists at the specified path, false otherwise
+     */
+    public boolean containsNotNull(@NotNull String key) {
+        Object value = getPathValue(key);
+        return value != null;
+    }
+
+    /**
+     * Returns the number of top-level keys in the storage.
+     *
+     * @return The count of top-level keys
+     */
+    public int size() {
+        return init.size();
+    }
+
+    /**
+     * Returns the number of keys at the specified path (if it points to a map).
+     *
+     * @param path The path to check (empty string for root)
+     * @return The count of keys at the specified path, or 0 if path doesn't point to a map
+     */
+    public int size(@NotNull String path) {
+        Object value = path.isEmpty() ? init : getPathValue(path);
+        return (value instanceof Map) ? ((Map<?, ?>) value).size() : 0;
+    }
+
+    /**
+     * Clears all data from the storage.
+     */
+    public void clear() {
+        init.clear();
+    }
+
+    /**
+     * Clears all data at the specified path (if it points to a map).
+     *
+     * @param path The path to clear (empty string for root)
+     */
+    public void clear(@NotNull String path) {
+        Object value = path.isEmpty() ? init : getPathValue(path);
+        if (value instanceof Map) {
+            ((Map<?, ?>) value).clear();
+        }
+    }
+
+    /**
+     * Performs an action for each key-value pair in the storage.
+     *
+     * @param action The action to perform for each entry
+     */
+    public void forEach(@NotNull BiConsumer<String, Object> action) {
+        forEach("", action, false);
+    }
+
+    /**
+     * Performs an action for each key-value pair starting from the specified path.
+     *
+     * @param basePath The path to start from (empty string for root)
+     * @param action The action to perform for each entry
+     */
+    public void forEach(@NotNull String basePath, @NotNull BiConsumer<String, Object> action) {
+        forEach(basePath, action, false);
+    }
+
+    /**
+     * Performs an action for each key-value pair in the storage, recursively if specified.
+     *
+     * @param basePath The path to start from (empty string for root)
+     * @param action The action to perform for each entry
+     * @param recursive Whether to recurse into nested maps
+     */
+    public void forEach(@NotNull String basePath,
+                        @NotNull BiConsumer<String, Object> action,
+                        boolean recursive) {
+        Object value = basePath.isEmpty() ? init : getPathValue(basePath);
+        if (!(value instanceof Map)) return;
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = (Map<String, Object>) value;
+
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            String fullPath = basePath.isEmpty() ? entry.getKey() : basePath + "." + entry.getKey();
+            action.accept(fullPath, entry.getValue());
+
+            if (recursive && entry.getValue() instanceof Map) {
+                forEach(fullPath, action, true);
+            }
+        }
+    }
+
+    /**
+     * Performs an action for each key in the storage.
+     *
+     * @param action The action to perform for each key
+     */
+    public void forEachKey(@NotNull Consumer<String> action) {
+        getKeys(true).forEach(action);
+    }
+
+    /**
+     * Performs an action for each value in the storage.
+     *
+     * @param action The action to perform for each value
+     */
+    public void forEachValue(@NotNull Consumer<Object> action) {
+        forEach((k, v) -> action.accept(v));
+    }
+
+    /**
+     * Puts all entries from the given map into storage at the specified path.
+     *
+     * @param path The base path where to put the entries
+     * @param map The map containing entries to add
+     */
+    public void putAll(@NotNull String path, @NotNull Map<String, ?> map) {
+        map.forEach((key, value) -> set(path.isEmpty() ? key : path + "." + key, value));
+    }
+
+    /**
+     * Gets a map containing all key-value pairs at the specified path.
+     *
+     * @param path The path to get the map from (empty for root)
+     * @return A new map containing all key-value pairs, or empty map if path doesn't point to a map
+     */
+    @SuppressWarnings("unchecked")
+    public @NotNull Map<String, Object> toMap(@NotNull String path) {
+        Object value = path.isEmpty() ? init : getPathValue(path);
+        if (value instanceof Map) {
+            return new HashMap<>((Map<String, Object>) value);
+        }
+        return new HashMap<>();
+    }
+
+    /**
+     * Gets a read-only view of the map at the specified path.
+     *
+     * @param path The path to get the map from (empty for root)
+     * @return An unmodifiable map view, or empty map if path doesn't point to a map
+     */
+    @SuppressWarnings("unchecked")
+    public @NotNull Map<String, Object> getMapView(@NotNull String path) {
+        Object value = path.isEmpty() ? init : getPathValue(path);
+        if (value instanceof Map) {
+            return Collections.unmodifiableMap((Map<String, Object>) value);
+        }
+        return Collections.emptyMap();
+    }
+
+    /**
+     * Merges another storage's data into this one.
+     *
+     * @param other The storage to merge from
+     * @param overwrite Whether to overwrite existing keys
+     */
+    public void merge(@NotNull Storage other, boolean overwrite) {
+        merge("", other.init, overwrite);
+    }
+
+    private void merge(@NotNull String currentPath, @NotNull Map<String, Object> source, boolean overwrite) {
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            String fullPath = currentPath.isEmpty() ? entry.getKey() : currentPath + "." + entry.getKey();
+
+            if (entry.getValue() instanceof Map) {
+                // If target is also a map, recurse
+                Object targetValue = getPathValue(fullPath);
+                if (targetValue instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> targetMap = (Map<String, Object>) targetValue;
+                    //noinspection unchecked
+                    merge(fullPath, (Map<String, Object>) entry.getValue(), overwrite);
+                } else if (overwrite || targetValue == null) {
+                    set(fullPath, entry.getValue());
+                }
+            } else if (overwrite || !contains(fullPath)) {
+                set(fullPath, entry.getValue());
+            }
+        }
+    }
+
+    /**
+     * Creates a deep copy of the storage data.
+     *
+     * @return A new map containing all the data
+     */
+    public @NotNull Map<String, Object> deepCopy() {
+        return deepCopyMap(init);
+    }
+
+    private @NotNull Map<String, Object> deepCopyMap(@NotNull Map<String, Object> original) {
+        Map<String, Object> copy = new HashMap<>();
+        for (Map.Entry<String, Object> entry : original.entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof Map) {
+                //noinspection unchecked
+                copy.put(entry.getKey(), deepCopyMap((Map<String, Object>) value));
+            } else {
+                copy.put(entry.getKey(), value);
+            }
+        }
+        return copy;
     }
 
 }
