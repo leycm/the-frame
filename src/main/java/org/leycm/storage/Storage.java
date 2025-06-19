@@ -116,7 +116,7 @@ public abstract class Storage {
      */
 
     @Contract("_ -> new")
-    private @NotNull StorageSection getStorageSection(String key) {
+    public @NotNull StorageSection getStorageSection(String key) {
         StorageSection section = new StorageSection();
         section.parentKey = key;
         section.parentStorage = this;

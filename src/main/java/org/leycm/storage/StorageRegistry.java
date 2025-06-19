@@ -8,10 +8,7 @@ import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -90,6 +87,7 @@ public final class StorageRegistry {
      *
      * @param file           The name of the storage file (without the extension).
      * @param type           The {@link Storage.Type} of the storage file (e.g., JSON, YAML, TOML).
+     * @param digital        Whether the storage is digital (in-memory only).
      * @param storageClass   The class of the {@link Storage} to be registered and loaded.
      * @param <T>            The generic type of the {@link Storage}.
      * @return The loaded or cached instance of the specified {@link Storage}.
@@ -102,7 +100,36 @@ public final class StorageRegistry {
                                                           @NotNull Class<T> storageClass) {
         requireSetup();
         String fullFile = !digital ? storageDir + "/" + file : ".digital/" + file;
-        return storageCash.containsKey(fullFile) ? fromCache(fullFile, storageClass) : load(fullFile, type, digital, storageClass);
+
+        if (!digital) {
+            copyFromResources(file, type);
+        }
+
+        return storageCash.containsKey(fullFile) ? fromCache(fullFile, storageClass)
+                : load(fullFile, type, digital, storageClass);
+    }
+
+    /**
+     * Copies default configuration from resources to storage directory if target file doesn't exist.
+     *
+     * @param file The base filename (without extension)
+     * @param type The file type/extension
+     */
+    private static void copyFromResources(@NotNull String file, @NotNull Storage.Type type) {
+        Path targetPath = Path.of(storageDir, file + "." + type.getId());
+
+        if (Files.exists(targetPath)) return;
+
+        String resourcePath = "/storage/" + file + "." + type.getId();
+        try (InputStream is = StorageRegistry.class.getResourceAsStream(resourcePath)) {
+            if (is != null) {
+                Files.createDirectories(targetPath.getParent());
+
+                Files.copy(is, targetPath);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to copy default config from resources for " + file, e);
+        }
     }
 
     /**
@@ -136,6 +163,7 @@ public final class StorageRegistry {
      * @param file           The full file path (including the configuration directory and file name)
      * of the storage file (without the extension).
      * @param type           The {@link Storage.Type} of the storage file.
+     * @param digital        Whether the storage is digital (in-memory only).
      * @param storageClass   The class of the {@link Storage} to be loaded.
      * @param <T>            The generic type of the {@link Storage}.
      * @return The newly loaded instance of the specified {@link Storage}.
